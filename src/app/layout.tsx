@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   description:
     'SmartNotepad combines rich-text note editing with inline web search so you can research and write without ever switching tabs.',
   icons: {
-    icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
   },
 };
 
