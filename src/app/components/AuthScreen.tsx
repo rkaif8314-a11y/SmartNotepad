@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Sparkles, ShieldCheck, Cloud, Zap } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
-import { supabase } from '@/lib/supabase';
+import { getAuthSiteUrl, supabase } from '@/lib/supabase';
+import { setActiveStorageUser } from '@/lib/notesStorage';
 
 type Mode = 'login' | 'signup' | 'forgot';
 interface FormData { name?: string; email: string; password?: string; confirmPassword?: string; }
@@ -32,10 +33,19 @@ export default function AuthScreen() {
     if (!supabase) return;
     let mounted = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (mounted && data.session) router.replace('/dashboard');
+      if (mounted && data.session) {
+        setActiveStorageUser(data.session.user.id);
+        router.replace('/dashboard');
+      }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted && session) router.replace('/dashboard');
+      if (!mounted) return;
+      if (session) {
+        setActiveStorageUser(session.user.id);
+        router.replace('/dashboard');
+      } else {
+        setActiveStorageUser(null);
+      }
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, [router]);
@@ -51,9 +61,13 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password || '' });
+        const { data: result, error } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password || '' });
         if (error) throw error;
-        toast.success('Welcome back!'); router.replace('/dashboard'); return;
+        if (!result.user) throw new Error('No authenticated user returned.');
+        setActiveStorageUser(result.user.id);
+        toast.success('Welcome back!');
+        router.replace('/dashboard');
+        return;
       }
       if (mode === 'signup') {
         if (data.password !== data.confirmPassword) { form.setError('confirmPassword', { message: 'Passwords do not match' }); return; }
@@ -62,15 +76,21 @@ export default function AuthScreen() {
           password: data.password || '',
           options: {
             data: { full_name: data.name || '' },
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: `${getAuthSiteUrl()}/auth/callback?next=/dashboard`,
           },
         });
         if (error) throw error;
-        if (result.session) { toast.success('Account created!'); router.replace('/dashboard'); }
-        else { toast.success('Account created. Check your email to confirm your address.'); setMode('login'); }
+        if (result.session && result.user) {
+          setActiveStorageUser(result.user.id);
+          toast.success('Account created!');
+          router.replace('/dashboard');
+        } else {
+          toast.success('Account created. Check your email to confirm your address.');
+          setMode('login');
+        }
         return;
       }
-      const { error } = await supabase.auth.resetPasswordForEmail(data.email, { redirectTo: `${window.location.origin}/reset-password` });
+      const { error } = await supabase.auth.resetPasswordForEmail(data.email, { redirectTo: `${getAuthSiteUrl()}/reset-password` });
       if (error) throw error;
       toast.success('Password reset email sent.'); setMode('login');
     } catch (error) {
