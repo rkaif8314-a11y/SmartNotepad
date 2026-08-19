@@ -1,226 +1,35 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import {
-  FileText, Pin, Star, Clock, Plus, Search,
-  TrendingUp, Folder, ArrowRight
-} from 'lucide-react';
+import { FileText, Pin, Star, Clock3, Plus, Search, TrendingUp, Folder, ArrowRight, Sparkles } from 'lucide-react';
 import { type Note, type Folder as FolderType, formatRelativeTime } from '@/lib/notesStorage';
 import NotesActivityChart from './NotesActivityChart';
 
-interface Props {
-  notes: Note[];
-  folders: FolderType[];
-  onCreateNote: () => void;
-  onSelectNote: (id: string) => void;
-  onOpenSearch: () => void;
-}
+interface Props { notes: Note[]; folders: FolderType[]; onCreateNote: () => void; onSelectNote: (id: string) => void; onOpenSearch: () => void; }
 
 export default function DashboardHome({ notes, folders, onCreateNote, onSelectNote, onOpenSearch }: Props) {
-  const pinned = notes.filter(n => n.isPinned);
-  const favorites = notes.filter(n => n.isFavorite);
-  const recent = [...notes]
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 5);
-
-  const totalWords = useMemo(() => notes.reduce((acc, n) => acc + n.wordCount, 0), [notes]);
-
-  // Activity data for last 7 days
-  const activityData = useMemo(() => {
-    const days: { day: string; notes: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date('2026-08-18T22:41:28Z');
-      d.setDate(d.getDate() - i);
-      const dayStr = d.toLocaleDateString('en-GB', { weekday: 'short' });
-      const dateStr = d.toISOString().slice(0, 10);
-      const count = notes.filter(n => n.updatedAt.startsWith(dateStr)).length;
-      days.push({ day: dayStr, notes: count });
-    }
-    return days;
-  }, [notes]);
-
-  const kpiCards = [
-    { label: 'Total Notes', value: notes.length, icon: FileText, color: 'text-primary', bg: 'bg-secondary' },
-    { label: 'Pinned', value: pinned.length, icon: Pin, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { label: 'Favorites', value: favorites.length, icon: Star, color: 'text-amber-500', bg: 'bg-amber-50' },
-    { label: 'Total Words', value: totalWords.toLocaleString(), icon: TrendingUp, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+  const pinned = notes.filter(n => n.isPinned); const favorites = notes.filter(n => n.isFavorite);
+  const recent = [...notes].sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0,6);
+  const totalWords = useMemo(() => notes.reduce((sum, n) => sum + n.wordCount, 0), [notes]);
+  const activityData = useMemo(() => { const days: {day:string;notes:number}[] = []; const today = new Date(); for (let i=6;i>=0;i--) { const d = new Date(today); d.setHours(0,0,0,0); d.setDate(today.getDate()-i); const date = d.toISOString().slice(0,10); days.push({ day:d.toLocaleDateString('en-US',{weekday:'short'}), notes:notes.filter(n=>n.updatedAt.startsWith(date)).length }); } return days; }, [notes]);
+  const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
+  const cards = [
+    {label:'Notes', value:notes.length, icon:FileText, tone:'bg-secondary text-primary'},
+    {label:'Pinned', value:pinned.length, icon:Pin, tone:'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-300'},
+    {label:'Favorites', value:favorites.length, icon:Star, tone:'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300'},
+    {label:'Words written', value:totalWords.toLocaleString(), icon:TrendingUp, tone:'bg-teal-50 text-teal-600 dark:bg-teal-950/40 dark:text-teal-300'},
   ];
 
-  return (
-    <div className="h-full overflow-y-auto scrollbar-thin bg-background">
-      <div className="max-w-screen-2xl mx-auto px-6 lg:px-10 xl:px-16 py-8">
+  return <div className="h-full overflow-y-auto scrollbar-thin bg-background"><div className="max-w-[1500px] mx-auto px-5 sm:px-7 lg:px-10 xl:px-14 py-7 lg:py-9">
+    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 mb-7"><div><p className="text-sm font-medium text-primary mb-1">Your workspace</p><h1 className="text-3xl sm:text-[34px] font-bold tracking-[-.035em]">{greeting}.</h1><p className="mt-1.5 text-sm text-muted-foreground">A calm place to capture ideas, plans, and everything worth remembering.</p></div><div className="flex items-center gap-2"><button onClick={onOpenSearch} className="app-control px-3.5 flex items-center gap-2 text-sm text-muted-foreground"><Search size={15}/> Search web</button><button onClick={onCreateNote} className="app-primary h-10 px-4 flex items-center gap-2 text-sm font-semibold"><Plus size={16}/> New note</button></div></div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Good evening</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {notes.length} note{notes.length !== 1 ? 's' : ''} across {folders.length} folder{folders.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onOpenSearch}
-              className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150"
-            >
-              <Search size={15} />
-              Search web
-            </button>
-            <button
-              onClick={onCreateNote}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 active:scale-95 transition-all duration-150"
-            >
-              <Plus size={15} />
-              New Note
-            </button>
-          </div>
-        </div>
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3.5 mb-6">{cards.map(card => <div key={card.label} className="app-surface p-4 sm:p-5"><div className="flex items-center justify-between"><span className="text-xs font-semibold text-muted-foreground">{card.label}</span><span className={`grid h-9 w-9 place-items-center rounded-xl ${card.tone}`}><card.icon size={16}/></span></div><p className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight font-mono-data">{card.value}</p></div>)}</div>
 
-        {/* KPI Grid — 4 cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {kpiCards.map(card => (
-            <div key={`kpi-${card.label}`} className="bg-card border border-border rounded-xl p-4 hover:shadow-sm transition-all duration-150">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.label}</span>
-                <div className={`w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center`}>
-                  <card.icon size={16} className={card.color} />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-foreground font-mono-data">{card.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Main grid: Activity chart + Recent notes + Pinned + Favorites */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-          {/* Activity Chart */}
-          <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-foreground">Editing Activity</h2>
-              <span className="text-xs text-muted-foreground">Last 7 days</span>
-            </div>
-            <NotesActivityChart data={activityData} />
-          </div>
-
-          {/* Folders */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-foreground">Folders</h2>
-              <Folder size={15} className="text-muted-foreground" />
-            </div>
-            <div className="space-y-2">
-              {folders.map(folder => {
-                const count = notes.filter(n => n.folderId === folder.id).length;
-                return (
-                  <div key={`home-folder-${folder.id}`} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted transition-colors duration-150">
-                    <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: `${folder.color}20` }}>
-                      <Folder size={14} style={{ color: folder.color }} />
-                    </div>
-                    <span className="text-sm text-foreground flex-1">{folder.name}</span>
-                    <span className="text-xs text-muted-foreground font-mono-data">{count}</span>
-                  </div>
-                );
-              })}
-              {folders.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-4">No folders yet</p>
-              )}
-            </div>
-          </div>
-
-          {/* Recent Notes */}
-          <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-foreground">Recently Edited</h2>
-              <Clock size={15} className="text-muted-foreground" />
-            </div>
-            <div className="space-y-1">
-              {recent.map(note => {
-                const snippet = note.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
-                return (
-                  <button
-                    key={`recent-${note.id}`}
-                    onClick={() => onSelectNote(note.id)}
-                    className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted transition-colors duration-150 text-left group"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      <FileText size={14} className="text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{note.title}</p>
-                      {snippet && <p className="text-xs text-muted-foreground truncate">{snippet}</p>}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {note.isPinned && <Pin size={11} className="text-primary/60" />}
-                      {note.isFavorite && <Star size={11} className="text-amber-500 fill-amber-500" />}
-                      <span className="text-[11px] text-muted-foreground">{formatRelativeTime(note.updatedAt)}</span>
-                      <ArrowRight size={13} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
-                    </div>
-                  </button>
-                );
-              })}
-              {recent.length === 0 && (
-                <div className="text-center py-8">
-                  <FileText size={24} className="text-muted-foreground mx-auto mb-2 opacity-40" />
-                  <p className="text-sm text-muted-foreground">No notes yet</p>
-                  <button onClick={onCreateNote} className="mt-2 text-xs text-primary hover:underline">Create your first note</button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Pinned + Favorites stacked */}
-          <div className="space-y-4">
-            {/* Pinned */}
-            <div className="bg-card border border-border rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Pin size={14} className="text-primary" />
-                <h2 className="text-sm font-semibold text-foreground">Pinned</h2>
-                <span className="text-xs text-muted-foreground font-mono-data ml-auto">{pinned.length}</span>
-              </div>
-              {pinned.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No pinned notes. Pin important notes to see them here.</p>
-              ) : (
-                <div className="space-y-1">
-                  {pinned.slice(0, 3).map(note => (
-                    <button
-                      key={`pinned-${note.id}`}
-                      onClick={() => onSelectNote(note.id)}
-                      className="w-full text-left text-xs text-foreground hover:text-primary px-2 py-1.5 rounded hover:bg-muted transition-colors duration-150 truncate"
-                    >
-                      {note.title}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Favorites */}
-            <div className="bg-card border border-amber-100 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Star size={14} className="text-amber-500 fill-amber-500" />
-                <h2 className="text-sm font-semibold text-foreground">Favorites</h2>
-                <span className="text-xs text-muted-foreground font-mono-data ml-auto">{favorites.length}</span>
-              </div>
-              {favorites.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No favorites. Star notes you want to revisit quickly.</p>
-              ) : (
-                <div className="space-y-1">
-                  {favorites.slice(0, 3).map(note => (
-                    <button
-                      key={`fav-${note.id}`}
-                      onClick={() => onSelectNote(note.id)}
-                      className="w-full text-left text-xs text-foreground hover:text-amber-600 px-2 py-1.5 rounded hover:bg-amber-50 transition-colors duration-150 truncate"
-                    >
-                      {note.title}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    {notes.length === 0 ? <section className="app-surface p-8 sm:p-12 text-center"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-secondary text-primary"><Sparkles size={23}/></div><h2 className="mt-5 text-xl font-bold">Make your first note</h2><p className="mt-2 max-w-md mx-auto text-sm leading-6 text-muted-foreground">Start with a thought, a class note, a project idea, or a simple daily plan. SmartNotepad keeps it organized.</p><button onClick={onCreateNote} className="app-primary mt-6 h-10 px-5 inline-flex items-center gap-2 text-sm font-semibold"><Plus size={16}/> Create first note</button></section> : <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <section className="app-surface xl:col-span-2 p-5 sm:p-6"><div className="flex items-center justify-between mb-5"><div><h2 className="text-sm font-bold">Writing activity</h2><p className="text-xs text-muted-foreground mt-1">Notes updated over the last 7 days</p></div><Clock3 size={17} className="text-muted-foreground"/></div><NotesActivityChart data={activityData}/></section>
+      <section className="app-surface p-5 sm:p-6"><div className="flex items-center justify-between mb-4"><div><h2 className="text-sm font-bold">Folders</h2><p className="text-xs text-muted-foreground mt-1">Your organization</p></div><Folder size={16} className="text-muted-foreground"/></div><div className="space-y-1">{folders.length ? folders.map(folder => { const count=notes.filter(n=>n.folderId===folder.id).length; return <div key={folder.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-muted transition-colors"><span className="grid h-8 w-8 place-items-center rounded-lg" style={{backgroundColor:`${folder.color}20`}}><Folder size={14} style={{color:folder.color}}/></span><span className="flex-1 text-sm font-medium truncate">{folder.name}</span><span className="text-xs text-muted-foreground font-mono-data">{count}</span></div>; }) : <p className="py-6 text-center text-xs text-muted-foreground">Create a folder from the sidebar.</p>}</div></section>
+      <section className="app-surface xl:col-span-2 p-5 sm:p-6"><div className="flex items-center justify-between mb-4"><div><h2 className="text-sm font-bold">Recently edited</h2><p className="text-xs text-muted-foreground mt-1">Jump back into your latest work</p></div><FileText size={16} className="text-muted-foreground"/></div><div className="space-y-1">{recent.map(note => { const snippet=note.content.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,75); return <button key={note.id} onClick={()=>onSelectNote(note.id)} className="w-full flex items-center gap-3 rounded-xl p-3 text-left hover:bg-muted group transition-colors"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary text-primary"><FileText size={15}/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold truncate">{note.title}</span><span className="block mt-0.5 text-xs text-muted-foreground truncate">{snippet || 'Empty note'}</span></span><span className="shrink-0 text-[10px] text-muted-foreground">{formatRelativeTime(note.updatedAt)}</span><ArrowRight size={14} className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100"/></button>; })}</div></section>
+      <div className="space-y-5"><section className="app-surface p-5 sm:p-6"><div className="flex items-center gap-2 mb-4"><Pin size={15} className="text-primary"/><h2 className="text-sm font-bold">Pinned</h2><span className="ml-auto text-xs text-muted-foreground font-mono-data">{pinned.length}</span></div>{pinned.length ? <div className="space-y-1">{pinned.slice(0,4).map(note=><button key={note.id} onClick={()=>onSelectNote(note.id)} className="w-full text-left rounded-lg px-2.5 py-2 text-xs font-medium truncate hover:bg-muted hover:text-primary">{note.title}</button>)}</div> : <p className="text-xs leading-5 text-muted-foreground">Pin important notes and they will stay close at hand.</p>}</section><section className="app-surface p-5 sm:p-6"><div className="flex items-center gap-2 mb-4"><Star size={15} className="text-amber-500 fill-amber-500"/><h2 className="text-sm font-bold">Favorites</h2><span className="ml-auto text-xs text-muted-foreground font-mono-data">{favorites.length}</span></div>{favorites.length ? <div className="space-y-1">{favorites.slice(0,4).map(note=><button key={note.id} onClick={()=>onSelectNote(note.id)} className="w-full text-left rounded-lg px-2.5 py-2 text-xs font-medium truncate hover:bg-muted hover:text-amber-600">{note.title}</button>)}</div> : <p className="text-xs leading-5 text-muted-foreground">Star the notes you want to find again quickly.</p>}</section></div>
+    </div>}
+  </div></div>;
 }
