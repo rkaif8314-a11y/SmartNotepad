@@ -62,15 +62,19 @@
   .app-primary:hover { filter: brightness(1.03); box-shadow: 0 9px 22px color-mix(in srgb, var(--primary) 24%, transparent); }
   .app-primary:active { transform: translateY(1px); }
 
-  /* Auth controls are deliberately force-sized so browser extensions/autofill cannot collapse them. */
+  /* Classic auth layout: the controls always stretch to the form width. */
+  .auth-field { display: block !important; width: 100% !important; min-width: 0 !important; }
+  .auth-field-control { display: block !important; position: relative !important; width: 100% !important; min-width: 100% !important; max-width: none !important; }
   input.auth-input {
     display: block !important;
     width: 100% !important;
-    min-width: 0 !important;
+    min-width: 100% !important;
     max-width: none !important;
-    min-height: 48px !important;
     height: 48px !important;
+    min-height: 48px !important;
     box-sizing: border-box !important;
+    flex: 1 1 100% !important;
+    align-self: stretch !important;
     padding: 0 44px 0 42px !important;
     border: 1px solid var(--border) !important;
     border-radius: 11px !important;
@@ -84,6 +88,10 @@
   input.auth-input::placeholder { color: var(--muted-foreground); opacity: .8; }
   input.auth-input:focus { border-color: var(--ring) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 14%, transparent); }
   input.auth-input:disabled { opacity: .65; cursor: not-allowed; }
+
+  .auth-input:-webkit-autofill,
+  .auth-input:-webkit-autofill:hover,
+  .auth-input:-webkit-autofill:focus { -webkit-text-fill-color: var(--foreground); -webkit-box-shadow: 0 0 0 1000px var(--input) inset; transition: background-color 9999s ease-out 0s; }
 }
 
 @layer utilities {
