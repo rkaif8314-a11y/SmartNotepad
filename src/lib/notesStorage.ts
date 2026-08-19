@@ -68,11 +68,13 @@ export async function hydrateFromCloud(): Promise<{ notes: Note[]; folders: Fold
   return { notes: finalNotes, folders: finalFolders };
 }
 
+function mapCloudNote(n: any): Note { return { id:n.id, title:n.title, content:n.content, folderId:n.folder_id, isPinned:Boolean(n.is_pinned), isFavorite:Boolean(n.is_favorite), createdAt:n.created_at, updatedAt:n.updated_at, wordCount:Number(n.word_count ?? 0), isArchived:Boolean(n.is_archived), deletedAt:n.deleted_at ?? null, color:n.color ?? null, tags:n.tags ?? [] }; }
+
 export async function searchNotesCloud(query: string, limit = 50): Promise<Note[]> {
   if (!supabase || !query.trim()) return [];
   const { data, error } = await supabase.rpc('search_notes', { search_query: query.trim(), limit_count: limit, offset_count: 0 });
   if (error) { console.warn('SmartNotepad cloud search failed:', error.message); return []; }
-  return (data ?? []).map((n: any) => ({ id:n.id, title:n.title, content:n.content, folderId:n.folder_id, isPinned:n.is_pinned, isFavorite:n.is_favorite, createdAt:n.updated_at, updatedAt:n.updated_at, wordCount:n.word_count, isArchived:false, deletedAt:null }));
+  return (data ?? []).map(mapCloudNote);
 }
 
 export async function getNoteRevisions(noteId: string): Promise<NoteRevision[]> {
@@ -106,5 +108,11 @@ export async function restoreNoteFromTrash(noteId: string): Promise<void> {
   await supabase.from('notes').update({ deleted_at:null, is_archived:false }).eq('id', noteId).eq('user_id', user.id);
 }
 
+export async function permanentlyDeleteNote(noteId: string): Promise<void> {
+  if (!supabase) return; const user = await ensureSupabaseUser(); if (!user) return;
+  await supabase.from('notes').delete().eq('id', noteId).eq('user_id', user.id);
+}
+
+export function getLocalTrash(): Note[] { return loadNotes().filter(note => Boolean(note.deletedAt)); }
 export function countWords(html: string): number { const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(); return text ? text.split(' ').filter(Boolean).length : 0; }
 export function formatRelativeTime(iso: string): string { const diffMs = Date.now() - new Date(iso).getTime(); const diffMin = Math.floor(diffMs / 60000); if (diffMin < 1) return 'just now'; if (diffMin < 60) return `${diffMin}m ago`; const diffHr = Math.floor(diffMin / 60); if (diffHr < 24) return `${diffHr}h ago`; const diffDay = Math.floor(diffHr / 24); if (diffDay < 7) return `${diffDay}d ago`; return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }
