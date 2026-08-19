@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { loadNotes, saveNotes, loadFolders, saveFolders, countWords, type Note, type Folder } from '@/lib/notesStorage';
+import { loadNotes, saveNotes, loadFolders, saveFolders, hydrateFromCloud, countWords, type Note, type Folder } from '@/lib/notesStorage';
 import NotesSidebar from './NotesSidebar';
 import NoteEditor from './NoteEditor';
 import WebSearchPanel from './WebSearchPanel';
@@ -24,7 +24,13 @@ export default function DashboardShell() {
   const [insertContent, setInsertContent] = useState<string | null>(null); const [commandOpen, setCommandOpen] = useState(false); const [darkMode, setDarkMode] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { setNotes(loadNotes()); setFolders(loadFolders()); const stored = localStorage.getItem('smartnotepad_theme'); const dark = stored === 'dark'; setDarkMode(dark); if (dark) document.documentElement.classList.add('dark'); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    setNotes(loadNotes()); setFolders(loadFolders());
+    const stored = localStorage.getItem('smartnotepad_theme'); const dark = stored === 'dark'; setDarkMode(dark); if (dark) document.documentElement.classList.add('dark');
+    void hydrateFromCloud().then(cloud => { if (!cancelled && cloud) { setNotes(cloud.notes); setFolders(cloud.folders); } });
+    return () => { cancelled = true; };
+  }, []);
   const persistNotes = useCallback((updated: Note[]) => saveNotes(updated), []);
   const activeNote = notes.find(n => n.id === activeNoteId) ?? null;
 
