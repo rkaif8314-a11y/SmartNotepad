@@ -11,6 +11,9 @@ import { supabase } from '@/lib/supabase';
 type Mode = 'login' | 'signup' | 'forgot';
 interface FormData { name?: string; email: string; password?: string; confirmPassword?: string; }
 
+const DEMO_EMAIL = 'demo@smartnotepad.app';
+const DEMO_PASSWORD = 'demo12345';
+
 const inputStyle: React.CSSProperties = {
   display: 'block', width: '100%', minWidth: '100%', maxWidth: '100%', height: 52, minHeight: 52,
   flex: '1 1 100%', alignSelf: 'stretch', boxSizing: 'border-box',
@@ -24,6 +27,12 @@ export default function AuthScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const form = useForm<FormData>();
+
+  const fillDemo = () => {
+    form.setValue('email', DEMO_EMAIL, { shouldValidate: true });
+    form.setValue('password', DEMO_PASSWORD, { shouldValidate: true });
+    toast.success('Demo credentials filled. Tap "Sign in" to continue.');
+  };
 
   const submit = async (data: FormData) => {
     if (!supabase) { toast.error('Supabase is not configured.'); return; }
@@ -88,9 +97,10 @@ export default function AuthScreen() {
             {mode==='signup'&&<Field icon={Lock} label="Confirm password" error={form.formState.errors.confirmPassword?.message}><input {...form.register('confirmPassword',{required:'Confirm your password'})} type="password" autoComplete="new-password" placeholder="Repeat your password" className="auth-input" style={inputStyle}/></Field>}
             {mode==='login'&&<div className="flex items-center justify-between text-sm"><label className="flex items-center gap-2 text-slate-600"><input type="checkbox" className="h-4 w-4 rounded border-slate-300 accent-violet-600"/> Remember me</label><button type="button" onClick={()=>setMode('forgot')} className="font-medium text-violet-600 hover:text-violet-700">Forgot password?</button></div>}
             <button disabled={loading} className="h-[52px] w-full rounded-[14px] bg-gradient-to-r from-violet-600 to-indigo-600 text-[15px] font-semibold text-white shadow-[0_10px_25px_rgba(99,74,220,.22)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(99,74,220,.28)] disabled:opacity-60">{loading?'Please wait…':mode==='login'?'Sign in':mode==='signup'?'Create account':'Send reset link'} {!loading&&<ArrowRight className="ml-2 inline" size={17}/>}</button>
+            {mode==='login'&&<button type="button" onClick={fillDemo} disabled={loading} className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] border border-violet-200 bg-white text-[15px] font-semibold text-violet-700 transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 disabled:opacity-60"><Sparkles size={16}/> Use demo account</button>}
           </form>
           <div className="mt-7 text-center text-sm text-slate-500">{mode==='login'?<>New here? <button onClick={()=>setMode('signup')} className="font-semibold text-violet-600 hover:underline">Create an account</button></>:<>Already have an account? <button onClick={()=>setMode('login')} className="font-semibold text-violet-600 hover:underline">Sign in</button></>}</div>
-          {mode==='login'&&<div className="mt-8 rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-indigo-50 p-5"><div className="flex gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-violet-600 shadow-sm"><Sparkles size={17}/></div><div><p className="font-semibold text-[#171a32]">SmartNotepad is ready</p><p className="mt-1 text-xs leading-5 text-slate-500">Use your real Supabase account. No demo credentials or fake login are used.</p></div></div></div>}
+          {mode==='login'&&<div className="mt-8 rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-indigo-50 p-5"><div className="flex gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-violet-600 shadow-sm"><Sparkles size={17}/></div><div><p className="font-semibold text-[#171a32]">Just exploring?</p><p className="mt-1 text-xs leading-5 text-slate-500">Tap &ldquo;Use demo account&rdquo; to prefill demo credentials, then sign in to take a look around.</p></div></div></div>}
           <p className="mt-8 text-center text-[11px] text-slate-400">Protected by Supabase authentication • Your data stays private</p>
         </div>
       </section>
