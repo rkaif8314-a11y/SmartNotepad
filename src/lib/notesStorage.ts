@@ -25,58 +25,50 @@ export const DEFAULT_NOTES: Note[] = [
   { id: 'note-008', title: 'Quick Ideas Dump', content: '<p>Random ideas to explore:</p><ul><li>Browser extension for SmartNotepad</li><li>Offline mode with IndexedDB</li><li>Collaborative editing</li><li>AI summarization of notes</li></ul>', folderId: null, isPinned: false, isFavorite: false, createdAt: '2026-08-18T22:00:00Z', updatedAt: '2026-08-18T22:00:00Z', wordCount: 27 },
 ];
 
-export function loadNotes(): Note[] {
-  if (typeof window === 'undefined') return DEFAULT_NOTES;
-  try { const raw = localStorage.getItem(NOTES_KEY); return raw ? JSON.parse(raw) as Note[] : DEFAULT_NOTES; } catch { return DEFAULT_NOTES; }
-}
-export function saveNotes(notes: Note[]): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
-  void syncNotesToCloud(notes);
-}
-export function loadFolders(): Folder[] {
-  if (typeof window === 'undefined') return DEFAULT_FOLDERS;
-  try { const raw = localStorage.getItem(FOLDERS_KEY); return raw ? JSON.parse(raw) as Folder[] : DEFAULT_FOLDERS; } catch { return DEFAULT_FOLDERS; }
-}
-export function saveFolders(folders: Folder[]): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
-  void syncFoldersToCloud(folders);
-}
+export function loadNotes(): Note[] { if (typeof window === 'undefined') return DEFAULT_NOTES; try { const raw = localStorage.getItem(NOTES_KEY); return raw ? JSON.parse(raw) as Note[] : DEFAULT_NOTES; } catch { return DEFAULT_NOTES; } }
+export function saveNotes(notes: Note[]): void { if (typeof window === 'undefined') return; localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); void syncNotesToCloud(notes); }
+export function loadFolders(): Folder[] { if (typeof window === 'undefined') return DEFAULT_FOLDERS; try { const raw = localStorage.getItem(FOLDERS_KEY); return raw ? JSON.parse(raw) as Folder[] : DEFAULT_FOLDERS; } catch { return DEFAULT_FOLDERS; } }
+export function saveFolders(folders: Folder[]): void { if (typeof window === 'undefined') return; localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders)); void syncFoldersToCloud(folders); }
 
 async function syncNotesToCloud(notes: Note[]) {
-  if (!supabase) return;
-  const user = await ensureSupabaseUser(); if (!user) return;
+  if (!supabase) return; const user = await ensureSupabaseUser(); if (!user) return;
   const rows = notes.map(note => ({ id: note.id, user_id: user.id, title: note.title, content: note.content, folder_id: note.folderId, is_pinned: note.isPinned, is_favorite: note.isFavorite, created_at: note.createdAt, updated_at: note.updatedAt, word_count: note.wordCount }));
+  const { data: cloudRows, error: loadError } = await supabase.from('notes').select('id');
+  if (loadError) { console.warn('SmartNotepad cloud note read failed:', loadError.message); return; }
+  const wanted = new Set(notes.map(n => n.id)); const staleIds = (cloudRows ?? []).map(row => row.id).filter(id => !wanted.has(id));
+  if (staleIds.length) await supabase.from('notes').delete().in('id', staleIds).eq('user_id', user.id);
+  if (!rows.length) return;
   const { error } = await supabase.from('notes').upsert(rows, { onConflict: 'id' });
   if (error) console.warn('SmartNotepad note sync failed:', error.message);
 }
 
 async function syncFoldersToCloud(folders: Folder[]) {
-  if (!supabase) return;
-  const user = await ensureSupabaseUser(); if (!user) return;
+  if (!supabase) return; const user = await ensureSupabaseUser(); if (!user) return;
   const rows = folders.map(folder => ({ id: folder.id, user_id: user.id, name: folder.name, color: folder.color, created_at: folder.createdAt }));
+  const { data: cloudRows, error: loadError } = await supabase.from('folders').select('id');
+  if (loadError) { console.warn('SmartNotepad cloud folder read failed:', loadError.message); return; }
+  const wanted = new Set(folders.map(f => f.id)); const staleIds = (cloudRows ?? []).map(row => row.id).filter(id => !wanted.has(id));
+  if (staleIds.length) await supabase.from('folders').delete().in('id', staleIds).eq('user_id', user.id);
+  if (!rows.length) return;
   const { error } = await supabase.from('folders').upsert(rows, { onConflict: 'id' });
   if (error) console.warn('SmartNotepad folder sync failed:', error.message);
 }
 
 export async function hydrateFromCloud(): Promise<{ notes: Note[]; folders: Folder[] } | null> {
-  if (!supabase) return null;
-  const user = await ensureSupabaseUser(); if (!user) return null;
+  if (!supabase) return null; const user = await ensureSupabaseUser(); if (!user) return null;
   const [{ data: cloudNotes, error: notesError }, { data: cloudFolders, error: foldersError }] = await Promise.all([
     supabase.from('notes').select('*').order('updated_at', { ascending: false }),
     supabase.from('folders').select('*').order('created_at', { ascending: true }),
   ]);
   if (notesError || foldersError) { console.warn('SmartNotepad cloud load failed:', notesError?.message || foldersError?.message); return null; }
-
   const localNotes = loadNotes(); const localFolders = loadFolders();
-  const notes: Note[] = (cloudNotes ?? []).map(n => ({ id:n.id, title:n.title, content:n.content, folderId:n.folder_id, isPinned:n.is_pinned, isFavorite:n.is_favorite, createdAt:n.created_at, updatedAt:n.updated_at, wordCount:n.word_count }));
-  const folders: Folder[] = (cloudFolders ?? []).map(f => ({ id:f.id, name:f.name, color:f.color, createdAt:f.created_at }));
-
-  if (!notes.length && !cloudNotes?.length) { await syncNotesToCloud(localNotes); }
-  if (!folders.length && !cloudFolders?.length) { await syncFoldersToCloud(localFolders); }
-  const finalNotes = notes.length ? notes : localNotes; const finalFolders = folders.length ? folders : localFolders;
+  const cloudMapped: Note[] = (cloudNotes ?? []).map(n => ({ id:n.id, title:n.title, content:n.content, folderId:n.folder_id, isPinned:n.is_pinned, isFavorite:n.is_favorite, createdAt:n.created_at, updatedAt:n.updated_at, wordCount:n.word_count }));
+  const cloudFoldersMapped: Folder[] = (cloudFolders ?? []).map(f => ({ id:f.id, name:f.name, color:f.color, createdAt:f.created_at }));
+  const noteMap = new Map<string, Note>(); [...cloudMapped, ...localNotes].forEach(note => { const existing = noteMap.get(note.id); if (!existing || new Date(note.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) noteMap.set(note.id, note); });
+  const folderMap = new Map<string, Folder>(); [...cloudFoldersMapped, ...localFolders].forEach(folder => { if (!folderMap.has(folder.id)) folderMap.set(folder.id, folder); });
+  const finalNotes = [...noteMap.values()].sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()); const finalFolders = [...folderMap.values()];
   localStorage.setItem(NOTES_KEY, JSON.stringify(finalNotes)); localStorage.setItem(FOLDERS_KEY, JSON.stringify(finalFolders));
+  void syncNotesToCloud(finalNotes); void syncFoldersToCloud(finalFolders);
   return { notes: finalNotes, folders: finalFolders };
 }
 
