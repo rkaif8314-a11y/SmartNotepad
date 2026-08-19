@@ -11,7 +11,7 @@ import SearchSettings from './SearchSettings';
 import AccountSettings from './AccountSettings';
 import ShortcutsSettings from './ShortcutsSettings';
 import { supabase } from '@/lib/supabase';
-import { setActiveStorageUser } from '@/lib/notesStorage';
+import { DEMO_STORAGE_USER, isDemoSession, setActiveStorageUser, setDemoSession } from '@/lib/notesStorage';
 
 export type SettingsCategory = 'appearance' | 'editor' | 'search' | 'account' | 'shortcuts';
 export interface AppSettings {
@@ -32,7 +32,7 @@ function settingsKey(userId: string) { return `smartnotepad_settings_${userId}`;
 
 function loadSettings(userId: string, name: string, email: string): AppSettings {
   const defaults: AppSettings = { ...BASE_DEFAULTS, name, email };
-  if (typeof window === 'undefined') return defaults;
+  if (typeof window === 'undefined' || userId === DEMO_STORAGE_USER) return defaults;
   try {
     const raw = localStorage.getItem(settingsKey(userId));
     if (!raw) return defaults;
@@ -59,6 +59,12 @@ export default function SettingsShell() {
 
   useEffect(() => {
     let mounted = true;
+    if (isDemoSession()) {
+      setActiveStorageUser(DEMO_STORAGE_USER);
+      setUserId(DEMO_STORAGE_USER);
+      setSettings(loadSettings(DEMO_STORAGE_USER, 'Demo User', 'demo@smartnotepad.app'));
+      return () => { mounted = false; };
+    }
     supabase.auth.getUser().then(({ data, error }) => {
       if (!mounted) return;
       if (error || !data.user) { router.replace('/'); return; }
@@ -70,7 +76,7 @@ export default function SettingsShell() {
       setSettings(loadSettings(user.id, name, user.email || ''));
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) { setActiveStorageUser(null); router.replace('/'); }
+      if (!session && !isDemoSession()) { setActiveStorageUser(null); router.replace('/'); }
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, [router]);
@@ -92,7 +98,7 @@ export default function SettingsShell() {
   const handleSave = async () => {
     if (!userId) return;
     setIsSaving(true);
-    localStorage.setItem(settingsKey(userId), JSON.stringify(settings));
+    if (userId !== DEMO_STORAGE_USER) localStorage.setItem(settingsKey(userId), JSON.stringify(settings));
     setIsDirty(false);
     setIsSaving(false);
     toast.success('Settings saved');
@@ -108,9 +114,12 @@ export default function SettingsShell() {
   const handleLogout = async () => {
     const id = userId;
     setActiveStorageUser(null);
-    if (id) localStorage.removeItem(`smartnotepad_notes_v2_${id}`);
-    if (id) localStorage.removeItem(`smartnotepad_folders_v2_${id}`);
-    const { error } = await supabase.auth.signOut();
+    setDemoSession(false);
+    if (id && id !== DEMO_STORAGE_USER) {
+      localStorage.removeItem(`smartnotepad_notes_v2_${id}`);
+      localStorage.removeItem(`smartnotepad_folders_v2_${id}`);
+    }
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
     if (error) { toast.error(error.message); return; }
     toast.success('Signed out successfully');
     router.replace('/');
