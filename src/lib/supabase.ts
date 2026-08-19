@@ -3,18 +3,18 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 // SmartNotepad production Supabase project.
-// The browser key is intentionally safe to expose in client-side code.
-// Keep the production values as the final fallback so a missing or stale
-// Vercel environment variable can never make authentication appear disabled.
+// These are public browser credentials only. Never put a service-role key here.
 const PRODUCTION_SUPABASE_URL = 'https://pjeagsxttqdftvetpxcc.supabase.co';
-const PRODUCTION_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqZWFnc3h0dHFkZnR2ZXRweGNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwOTIwMzksImV4cCI6MjEwMjY2ODAzOX0.Tf4HtNhtrtzTRMj_gwE7tGfgbc_2hP7W9ocuIdGNE4k';
+const PRODUCTION_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_xwTFjx_1yTXvWmeRNDzfEQ_z-c_HC4J';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || PRODUCTION_SUPABASE_URL;
 const key =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-  PRODUCTION_SUPABASE_ANON_KEY;
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+  PRODUCTION_SUPABASE_PUBLISHABLE_KEY;
 
+// The production URL/key are intentionally available as browser-safe fallbacks.
+// This prevents a missing Vercel env var from disabling authentication.
 export const supabaseConfigured = Boolean(url && key);
 
 export const supabase: SupabaseClient | null = supabaseConfigured
