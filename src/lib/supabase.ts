@@ -10,6 +10,16 @@ export const supabase: SupabaseClient | null = supabaseConfigured
   ? createClient(url, key, { auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true } })
   : null;
 
+export function getAuthSiteUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
+  if (configured) {
+    const normalized = configured.startsWith('http') ? configured : `https://${configured}`;
+    return normalized.replace(/\/$/, '');
+  }
+  if (typeof window !== 'undefined') return window.location.origin;
+  return 'http://localhost:3000';
+}
+
 export async function getCurrentUser() {
   if (!supabase) return null;
   const { data: { user } } = await supabase.auth.getUser();
