@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Sparkles, ShieldCheck, Cloud, Zap } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import { getAuthSiteUrl, supabase } from '@/lib/supabase';
-import { setActiveStorageUser } from '@/lib/notesStorage';
+import { DEMO_STORAGE_USER, isDemoSession, setActiveStorageUser, setDemoSession } from '@/lib/notesStorage';
 
 type Mode = 'login' | 'signup' | 'forgot';
 interface FormData { name?: string; email: string; password?: string; confirmPassword?: string; }
@@ -30,7 +30,11 @@ export default function AuthScreen() {
   const form = useForm<FormData>();
 
   useEffect(() => {
-    if (!supabase) return;
+    if (isDemoSession()) {
+      setActiveStorageUser(DEMO_STORAGE_USER);
+      router.replace('/dashboard');
+      return;
+    }
     let mounted = true;
     supabase.auth.getSession().then(({ data }) => {
       if (mounted && data.session) {
@@ -39,7 +43,7 @@ export default function AuthScreen() {
       }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
+      if (!mounted || isDemoSession()) return;
       if (session) {
         setActiveStorageUser(session.user.id);
         router.replace('/dashboard');
@@ -53,14 +57,23 @@ export default function AuthScreen() {
   const fillDemo = () => {
     form.setValue('email', DEMO_EMAIL, { shouldValidate: true });
     form.setValue('password', DEMO_PASSWORD, { shouldValidate: true });
-    toast.success('Demo credentials filled. Tap "Sign in" to continue.');
+    toast.success('Demo ready — tap Sign in for a temporary workspace.');
   };
 
   const submit = async (data: FormData) => {
-    if (!supabase) { toast.error('Supabase is not configured.'); return; }
     setLoading(true);
     try {
       if (mode === 'login') {
+        if (data.email.trim().toLowerCase() === DEMO_EMAIL) {
+          if (data.password !== DEMO_PASSWORD) throw new Error('Invalid demo credentials. Use the “Use demo account” button.');
+          await supabase.auth.signOut({ scope: 'local' });
+          setDemoSession(true);
+          setActiveStorageUser(DEMO_STORAGE_USER);
+          toast.success('Demo workspace opened. Nothing is saved to your account.');
+          router.replace('/dashboard');
+          return;
+        }
+        setDemoSession(false);
         const { data: result, error } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password || '' });
         if (error) throw error;
         if (!result.user) throw new Error('No authenticated user returned.');
@@ -139,7 +152,7 @@ export default function AuthScreen() {
             {mode==='login'&&<button type="button" onClick={fillDemo} disabled={loading} className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] border border-violet-200 bg-white text-[15px] font-semibold text-violet-700 transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 disabled:opacity-60"><Sparkles size={16}/> Use demo account</button>}
           </form>
           <div className="mt-7 text-center text-sm text-slate-500">{mode==='login'?<>New here? <button onClick={()=>setMode('signup')} className="font-semibold text-violet-600 hover:underline">Create an account</button></>:<>Already have an account? <button onClick={()=>setMode('login')} className="font-semibold text-violet-600 hover:underline">Sign in</button></>}</div>
-          {mode==='login'&&<div className="mt-8 rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-indigo-50 p-5"><div className="flex gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-violet-600 shadow-sm"><Sparkles size={17}/></div><div><p className="font-semibold text-[#171a32]">Just exploring?</p><p className="mt-1 text-xs leading-5 text-slate-500">Tap &ldquo;Use demo account&rdquo; to prefill demo credentials, then sign in to take a look around.</p></div></div></div>}
+          {mode==='login'&&<div className="mt-8 rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-indigo-50 p-5"><div className="flex gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-violet-600 shadow-sm"><Sparkles size={17}/></div><div><p className="font-semibold text-[#171a32]">Just exploring?</p><p className="mt-1 text-xs leading-5 text-slate-500">Tap “Use demo account” to open a temporary workspace. Demo notes are never synced to Supabase or saved to local storage.</p></div></div></div>}
           <p className="mt-8 text-center text-[11px] text-slate-400">Protected by Supabase authentication • Your data stays private</p>
         </div>
       </section>
