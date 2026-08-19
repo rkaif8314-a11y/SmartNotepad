@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { setActiveStorageUser } from '@/lib/notesStorage';
+import { DEMO_STORAGE_USER, isDemoSession, setActiveStorageUser, setDemoSession } from '@/lib/notesStorage';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -11,18 +11,26 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+
+    if (isDemoSession()) {
+      setActiveStorageUser(DEMO_STORAGE_USER);
+      setReady(true);
+      return () => { mounted = false; };
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       if (!data.session) {
         setActiveStorageUser(null);
         router.replace('/');
       } else {
+        setDemoSession(false);
         setActiveStorageUser(data.session.user.id);
         setReady(true);
       }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
+      if (!mounted || isDemoSession()) return;
       if (!session) {
         setActiveStorageUser(null);
         router.replace('/');
