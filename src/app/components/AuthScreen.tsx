@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -28,6 +28,18 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const form = useForm<FormData>();
 
+  useEffect(() => {
+    if (!supabase) return;
+    let mounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (mounted && data.session) router.replace('/dashboard');
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted && session) router.replace('/dashboard');
+    });
+    return () => { mounted = false; listener.subscription.unsubscribe(); };
+  }, [router]);
+
   const fillDemo = () => {
     form.setValue('email', DEMO_EMAIL, { shouldValidate: true });
     form.setValue('password', DEMO_PASSWORD, { shouldValidate: true });
@@ -45,7 +57,14 @@ export default function AuthScreen() {
       }
       if (mode === 'signup') {
         if (data.password !== data.confirmPassword) { form.setError('confirmPassword', { message: 'Passwords do not match' }); return; }
-        const { data: result, error } = await supabase.auth.signUp({ email: data.email, password: data.password || '', options: { data: { full_name: data.name || '' } } });
+        const { data: result, error } = await supabase.auth.signUp({
+          email: data.email,
+          password: data.password || '',
+          options: {
+            data: { full_name: data.name || '' },
+            emailRedirectTo: `${window.location.origin}/`,
+          },
+        });
         if (error) throw error;
         if (result.session) { toast.success('Account created!'); router.replace('/dashboard'); }
         else { toast.success('Account created. Check your email to confirm your address.'); setMode('login'); }
