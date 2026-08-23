@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SmartNotepad">
+  <defs>
+    <linearGradient id="sn" x1="100" y1="80" x2="410" y2="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.52" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#4f46e5" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#fff"/>
+  <g filter="url(#shadow)" fill="url(#sn)">
+    <path d="M86 340c25 0 51-1 75-1 22 0 43 2 62 8 20 7 37 18 50 34l-38 45c-20-18-43-27-69-27H91z"/>
+    <path d="M90 181c22-28 52-44 91-44 42 0 74 15 99 45l-45 39c-14-18-33-27-56-27-18 0-32 5-43 15-9 8-14 18-14 29 0 16 9 28 27 37 10 5 27 10 50 15 29 6 52 15 69 26 19 12 33 27 43 45l-50 28c-8-13-20-23-35-30-12-6-31-12-56-17-34-7-59-16-77-28-26-17-39-41-39-73 0-22 12-45 36-60z"/>
+    <path d="M309 176l46 0 43 72 25-91h54l-52 190-48 0-44-73-25 91h-54l55-189z"/>
+    <path d="M391 86l57-39 22 13-19 68-41 21-31-19z"/>
+    <path d="M431 56l16-11 15 9-5 18-17 9z" fill="#e0f2fe"/>
+  </g>
+  <path d="M424 65l-6 24" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="424" cy="65" r="8" fill="#fff"/>
+</svg>
