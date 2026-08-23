@@ -146,8 +146,22 @@ async function searchDuckDuckGoLite(query: string) {
 async function searchViaReader(query: string) {
   const target = new URL('https://www.google.com/search');
   target.searchParams.set('q', query); target.searchParams.set('num', '10'); target.searchParams.set('hl', 'en');
-  const readerUrl = `https://r.jina.ai/${target.toString()}`;
-  return parseJinaMarkdown(await fetchText(readerUrl, 'https://r.jina.ai/'));
+  return parseJinaMarkdown(await fetchText(`https://r.jina.ai/${target.toString()}`, 'https://r.jina.ai/'));
+}
+
+async function searchWikipedia(query: string): Promise<SearchResult[]> {
+  const url = new URL('https://en.wikipedia.org/w/api.php');
+  url.searchParams.set('action', 'query'); url.searchParams.set('list', 'search');
+  url.searchParams.set('srsearch', query); url.searchParams.set('srlimit', String(MAX_RESULTS));
+  url.searchParams.set('format', 'json'); url.searchParams.set('origin', '*');
+  const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(TIMEOUT_MS), headers: { 'User-Agent': 'SmartNotepad/1.0' } });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data = await response.json() as { query?: { search?: Array<{ pageid: number; title: string; snippet: string }> } };
+  return dedupe((data.query?.search ?? []).map(item => makeResult(
+    `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/ /g, '_'))}`,
+    item.title,
+    item.snippet,
+  )).filter((result): result is SearchResult => Boolean(result)));
 }
 
 export async function GET(request: NextRequest) {
@@ -160,6 +174,7 @@ export async function GET(request: NextRequest) {
     ['duckduckgo', searchDuckDuckGo],
     ['duckduckgo-lite', searchDuckDuckGoLite],
     ['reader', searchViaReader],
+    ['wikipedia', searchWikipedia],
   ];
 
   const errors: string[] = [];
