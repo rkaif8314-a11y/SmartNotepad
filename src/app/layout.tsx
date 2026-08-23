@@ -2,6 +2,7 @@ import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import { DM_Sans } from 'next/font/google';
 import { Toaster } from 'sonner';
+import AppSplash from '@/components/ui/AppSplash';
 import '../styles/tailwind.css';
 
 const dmSans = DM_Sans({
@@ -14,14 +15,17 @@ const dmSans = DM_Sans({
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  themeColor: '#ffffff',
 };
 
 export const metadata: Metadata = {
-  title: 'SmartNotepad — Write, Organize & Research in One Place',
+  title: 'SmartNotepad — Write Smarter. Organize Better. Remember Everything.',
   description:
-    'SmartNotepad combines rich-text note editing with inline web search so you can research and write without ever switching tabs.',
+    'SmartNotepad is a modern, secure digital workspace for capturing ideas, organizing notes, researching and remembering what matters.',
+  manifest: '/manifest.webmanifest',
   icons: {
-    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+    icon: [{ url: '/app-icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/app-icon.svg', type: 'image/svg+xml' }],
   },
 };
 
@@ -31,6 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={dmSans.variable}>
       <body className={dmSans.className}>
+        <AppSplash />
         {children}
         <Toaster
           position="bottom-right"
