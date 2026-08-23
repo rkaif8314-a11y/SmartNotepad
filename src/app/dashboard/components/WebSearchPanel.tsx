@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import { Search, Loader2, AlertCircle, ExternalLink, Plus, Globe } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { AlertCircle, ExternalLink, Globe, Loader2, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface SearchResult {
@@ -20,84 +20,47 @@ interface Props {
 
 type SearchState = 'idle' | 'loading' | 'results' | 'error' | 'empty';
 
-// Mock search results for demonstration — Backend integration point:
-// Replace with real /api/search endpoint call
-const MOCK_RESULTS: Record<string, SearchResult[]> = {
-  default: [
-    {
-      id: 'sr-001',
-      title: 'Introduction to Machine Learning — Google Developers',
-      snippet: 'Machine learning is a subfield of artificial intelligence that gives computers the ability to learn without being explicitly programmed. It focuses on developing algorithms that learn from data.',
-      url: 'https://developers.google.com/machine-learning/intro-to-ml',
-      domain: 'developers.google.com',
-      displayUrl: 'developers.google.com/machine-learning/intro-to-ml',
-    },
-    {
-      id: 'sr-002',
-      title: 'What is Machine Learning? — IBM',
-      snippet: 'Machine learning (ML) is a type of artificial intelligence (AI) that allows software applications to become more accurate at predicting outcomes without being explicitly programmed.',
-      url: 'https://www.ibm.com/topics/machine-learning',
-      domain: 'ibm.com',
-      displayUrl: 'ibm.com/topics/machine-learning',
-    },
-    {
-      id: 'sr-003',
-      title: 'Machine Learning Crash Course — Google',
-      snippet: 'A self-study guide for aspiring machine learning practitioners. Machine Learning Crash Course features a series of lessons with video lectures, real-world case studies, and hands-on practice exercises.',
-      url: 'https://developers.google.com/machine-learning/crash-course',
-      domain: 'developers.google.com',
-      displayUrl: 'developers.google.com/machine-learning/crash-course',
-    },
-    {
-      id: 'sr-004',
-      title: 'Supervised vs Unsupervised Learning — Towards Data Science',
-      snippet: 'The main difference between supervised and unsupervised learning is that supervised learning uses labeled training data while unsupervised learning uses unlabeled data to find hidden patterns.',
-      url: 'https://towardsdatascience.com/supervised-vs-unsupervised-learning',
-      domain: 'towardsdatascience.com',
-      displayUrl: 'towardsdatascience.com/supervised-vs-unsupervised-learning',
-    },
-    {
-      id: 'sr-005',
-      title: 'Scikit-learn: Machine Learning in Python',
-      snippet: 'Scikit-learn provides simple and efficient tools for predictive data analysis. It is accessible to everybody and reusable in various contexts, built on NumPy, SciPy, and Matplotlib.',
-      url: 'https://scikit-learn.org/stable/',
-      domain: 'scikit-learn.org',
-      displayUrl: 'scikit-learn.org/stable',
-    },
-  ],
-};
-
 function getFaviconUrl(domain: string): string {
-  return `https://www.google.com/s2/favicons?sz=16&domain=${domain}`;
+  return `https://www.google.com/s2/favicons?sz=32&domain=${encodeURIComponent(domain)}`;
 }
 
 export default function WebSearchPanel({ onInsertIntoNote, hasActiveNote }: Props) {
   const [query, setQuery] = useState('');
+  const [searchedQuery, setSearchedQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [state, setState] = useState<SearchState>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
   const [insertedIds, setInsertedIds] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSearch = async () => {
     const q = query.trim();
-    if (!q) return;
+    if (!q) {
+      inputRef.current?.focus();
+      return;
+    }
+
     setState('loading');
     setResults([]);
+    setErrorMessage('');
+    setSearchedQuery(q);
 
-    // Backend integration point: replace with real API call
-    // const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-    // const data = await res.json();
-    await new Promise(r => setTimeout(r, 1200));
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+      });
+      const data = await response.json() as { results?: SearchResult[]; error?: string };
 
-    // Simulate results based on query
-    const mockKey = Object.keys(MOCK_RESULTS).find(k => q.toLowerCase().includes(k)) ?? 'default';
-    const data = MOCK_RESULTS[mockKey] ?? MOCK_RESULTS.default;
+      if (!response.ok) throw new Error(data.error || 'Search failed.');
 
-    if (data.length === 0) {
-      setState('empty');
-    } else {
-      setResults(data);
-      setState('results');
+      const nextResults = Array.isArray(data.results) ? data.results : [];
+      setResults(nextResults);
+      setState(nextResults.length ? 'results' : 'empty');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Could not search the web.');
+      setState('error');
     }
   };
 
@@ -113,151 +76,90 @@ export default function WebSearchPanel({ onInsertIntoNote, hasActiveNote }: Prop
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Search Input */}
-      <div className="px-4 py-3 border-b border-border shrink-0">
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="shrink-0 border-b border-border px-4 py-3">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             ref={inputRef}
-            type="text"
+            type="search"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
-            placeholder="Search the web… (Enter)"
-            className="w-full pl-9 pr-10 py-2 bg-muted border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-150"
+            onKeyDown={e => { if (e.key === 'Enter') void handleSearch(); }}
+            placeholder="Search anything on the web…"
+            aria-label="Search the web"
+            className="w-full rounded-lg border border-border bg-muted py-2.5 pl-9 pr-11 text-sm text-foreground outline-none transition-all focus:ring-2 focus:ring-ring"
           />
-          {query && (
-            <button
-              onClick={handleSearch}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-150"
-            >
-              <Search size={12} />
-            </button>
-          )}
+          <button
+            onClick={() => void handleSearch()}
+            disabled={!query.trim() || state === 'loading'}
+            aria-label="Search"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md bg-primary p-1.5 text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {state === 'loading' ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+          </button>
         </div>
-        <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
-          <Globe size={11} />
-          Results open in a new tab. Use &quot;Insert&quot; to add to your note.
+        <p className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+          <Globe size={11} /> Live web results • Search again anytime • Insert results into your note
         </p>
       </div>
 
-      {/* Results Area */}
       <div className="flex-1 overflow-y-auto scrollbar-thin">
-        {/* Idle */}
         {state === 'idle' && (
-          <div className="flex flex-col items-center justify-center h-full px-6 text-center py-12">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
-              <Search size={20} className="text-muted-foreground" />
+          <div className="grid h-full place-items-center px-6 py-12 text-center">
+            <div>
+              <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-muted"><Search size={20} className="text-muted-foreground" /></div>
+              <p className="mb-1 text-sm font-medium">Search the web</p>
+              <p className="text-xs leading-5 text-muted-foreground">Try different questions, topics, websites or current information.</p>
             </div>
-            <p className="text-sm font-medium text-foreground mb-1">Search the web</p>
-            <p className="text-xs text-muted-foreground">Type a query above and press Enter to find information without leaving your note.</p>
           </div>
         )}
 
-        {/* Loading */}
         {state === 'loading' && (
-          <div className="flex flex-col items-center justify-center h-full gap-3 py-12">
-            <Loader2 size={24} className="animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Searching the web…</p>
+          <div className="grid h-full place-items-center px-6 py-12 text-center">
+            <div><Loader2 size={26} className="mx-auto mb-3 animate-spin text-primary" /><p className="text-sm font-medium">Searching live web results…</p><p className="mt-1 text-xs text-muted-foreground">Looking for pages relevant to “{searchedQuery}”</p></div>
           </div>
         )}
 
-        {/* Empty */}
         {state === 'empty' && (
-          <div className="flex flex-col items-center justify-center h-full px-6 text-center py-12">
-            <AlertCircle size={24} className="text-muted-foreground mb-3" />
-            <p className="text-sm font-medium text-foreground mb-1">No results found</p>
-            <p className="text-xs text-muted-foreground">Try different keywords or check your search query.</p>
+          <div className="grid h-full place-items-center px-6 py-12 text-center">
+            <div><AlertCircle size={24} className="mx-auto mb-3 text-muted-foreground" /><p className="text-sm font-medium">No results found</p><p className="mt-1 text-xs text-muted-foreground">Try broader or different keywords.</p></div>
           </div>
         )}
 
-        {/* Error */}
         {state === 'error' && (
-          <div className="flex flex-col items-center justify-center h-full px-6 text-center py-12">
-            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center mb-3">
-              <AlertCircle size={20} className="text-red-500" />
-            </div>
-            <p className="text-sm font-medium text-foreground mb-1">Search failed</p>
-            <p className="text-xs text-muted-foreground mb-3">Could not connect to the search service. Check your connection and try again.</p>
-            <button
-              onClick={handleSearch}
-              className="text-xs text-primary hover:underline"
-            >
-              Try again
-            </button>
+          <div className="grid h-full place-items-center px-6 py-12 text-center">
+            <div><AlertCircle size={24} className="mx-auto mb-3 text-red-500" /><p className="text-sm font-medium">Search failed</p><p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-muted-foreground">{errorMessage || 'The search service is temporarily unavailable.'}</p><button onClick={() => void handleSearch()} className="mt-3 text-xs font-medium text-primary hover:underline">Try again</button></div>
           </div>
         )}
 
-        {/* Results */}
         {state === 'results' && (
-          <div className="px-3 py-3 space-y-2">
-            <p className="text-[11px] text-muted-foreground px-1 mb-2">
-              {results.length} results for &quot;<span className="text-foreground font-medium">{query}</span>&quot;
-            </p>
+          <div className="space-y-2 px-3 py-3">
+            <div className="flex items-center justify-between px-1 pb-1">
+              <p className="text-[11px] text-muted-foreground">{results.length} live results for <span className="font-medium text-foreground">“{searchedQuery}”</span></p>
+              <button onClick={() => void handleSearch()} className="text-[11px] font-medium text-primary hover:underline">Refresh</button>
+            </div>
             {results.map(result => (
-              <div
-                key={`search-result-${result.id}`}
-                className="search-result-card rounded-lg border border-border p-3 cursor-pointer"
-              >
-                {/* Title row */}
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <a
-                    href={result.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold text-primary hover:underline leading-tight flex-1"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    {result.title}
-                  </a>
-                  <a
-                    href={result.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 p-1 rounded hover:bg-border text-muted-foreground hover:text-foreground transition-colors duration-150"
-                    title="Open in new tab"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <ExternalLink size={12} />
-                  </a>
+              <article key={result.id} className="rounded-lg border border-border p-3 transition-colors hover:bg-muted/40">
+                <div className="mb-1 flex items-start gap-2">
+                  <a href={result.url} target="_blank" rel="noopener noreferrer" className="flex-1 text-xs font-semibold leading-tight text-primary hover:underline">{result.title}</a>
+                  <a href={result.url} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" title="Open result"><ExternalLink size={12} /></a>
                 </div>
-
-                {/* Domain */}
-                <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="mb-1.5 flex items-center gap-1.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={getFaviconUrl(result.domain)}
-                    alt={`${result.domain} favicon`}
-                    width={12}
-                    height={12}
-                    className="rounded-sm"
-                  />
-                  <span className="text-[11px] text-muted-foreground truncate">{result.displayUrl}</span>
+                  <img src={getFaviconUrl(result.domain)} alt="" width={14} height={14} className="rounded-sm" />
+                  <span className="truncate text-[11px] text-muted-foreground">{result.displayUrl}</span>
                 </div>
-
-                {/* Snippet */}
-                <p className="text-[11px] text-muted-foreground leading-relaxed mb-2 line-clamp-3">
-                  {result.snippet}
-                </p>
-
-                {/* Insert button */}
+                {result.snippet && <p className="mb-2 line-clamp-4 text-[11px] leading-relaxed text-muted-foreground">{result.snippet}</p>}
                 <button
                   onClick={() => handleInsert(result)}
                   disabled={!hasActiveNote}
-                  className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-md transition-all duration-150 ${
-                    insertedIds.has(result.id)
-                      ? 'bg-green-50 text-green-600 border border-green-200'
-                      : hasActiveNote
-                      ? 'bg-secondary text-primary hover:bg-primary hover:text-primary-foreground border border-transparent'
-                      : 'bg-muted text-muted-foreground cursor-not-allowed border border-transparent'
-                  }`}
+                  className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-all ${insertedIds.has(result.id) ? 'border-green-200 bg-green-50 text-green-600' : hasActiveNote ? 'border-transparent bg-secondary text-primary hover:bg-primary hover:text-primary-foreground' : 'cursor-not-allowed border-transparent bg-muted text-muted-foreground'}`}
                   title={hasActiveNote ? 'Insert into current note' : 'Open a note first'}
                 >
-                  <Plus size={11} />
-                  {insertedIds.has(result.id) ? 'Inserted ✓' : 'Insert into Note'}
+                  <Plus size={11} /> {insertedIds.has(result.id) ? 'Inserted ✓' : 'Insert into Note'}
                 </button>
-              </div>
+              </article>
             ))}
           </div>
         )}
