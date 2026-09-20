@@ -1,6 +1,13 @@
 import { imageHosts } from './image-hosts.config.mjs';
 
 /** @type {import('next').NextConfig} */
+const securityHeaders = [
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+];
+
 const nextConfig = {
   productionBrowserSourceMaps: true,
   distDir: process.env.DIST_DIR || '.next',
@@ -8,6 +15,9 @@ const nextConfig = {
     remotePatterns: imageHosts,
     minimumCacheTTL: 60,
     qualities: [75, 85, 100],
+  },
+  async headers() {
+    return [{ source: '/(.*)', headers: securityHeaders }];
   },
   webpack(config, { dev }) {
     if (dev) {
