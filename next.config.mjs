@@ -9,7 +9,7 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
-  productionBrowserSourceMaps: true,
+  productionBrowserSourceMaps: false,
   distDir: process.env.DIST_DIR || '.next',
   images: {
     remotePatterns: imageHosts,
